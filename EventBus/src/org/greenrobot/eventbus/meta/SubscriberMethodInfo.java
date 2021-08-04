@@ -16,7 +16,7 @@
 package org.greenrobot.eventbus.meta;
 
 import org.greenrobot.eventbus.ThreadMode;
-
+//ok
 public class SubscriberMethodInfo {
     final String methodName;
     final ThreadMode threadMode;

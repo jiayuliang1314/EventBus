@@ -21,6 +21,7 @@ package org.greenrobot.eventbus;
  * 
  * @see EventBus#register(Object)
  * @author Markus
+ * ok
  */
 public enum ThreadMode {
     /**
@@ -28,6 +29,8 @@ public enum ThreadMode {
      * implies the least overhead because it avoids thread switching completely. Thus this is the recommended mode for
      * simple tasks that are known to complete in a very short time without requiring the main thread. Event handlers
      * using this mode must return quickly to avoid blocking the posting thread, which may be the main thread.
+     *
+     * 默认的线程模式，在哪个线程发送事件就在对应线程处理事件，避免了线程切换，效率高。
      */
     POSTING,
 
@@ -36,12 +39,16 @@ public enum ThreadMode {
      * the main thread, subscriber methods will be called directly, blocking the posting thread. Otherwise the event
      * is queued for delivery (non-blocking). Subscribers using this mode must return quickly to avoid blocking the main thread.
      * If not on Android, behaves the same as {@link #POSTING}.
+     *
+     * 如在主线程（UI线程）发送事件，则直接在主线程处理事件；如果在子线程发送事件，则先将事件入队列，然后通过 Handler 切换到主线程，依次处理事件。
      */
     MAIN,
 
     /**
      * On Android, subscriber will be called in Android's main thread (UI thread). Different from {@link #MAIN},
      * the event will always be queued for delivery. This ensures that the post call is non-blocking.
+     *
+     * 无论在哪个线程发送事件，都将事件加入到队列中，然后通过Handler切换到主线程，依次处理事件。
      */
     MAIN_ORDERED,
 
@@ -50,6 +57,8 @@ public enum ThreadMode {
      * will be called directly in the posting thread. If the posting thread is the main thread, EventBus uses a single
      * background thread, that will deliver all its events sequentially. Subscribers using this mode should try to
      * return quickly to avoid blocking the background thread. If not on Android, always uses a background thread.
+     *
+     * 与ThreadMode.MAIN相反，如果在子线程发送事件，则直接在子线程处理事件；如果在主线程上发送事件，则先将事件入队列，然后通过线程池处理事件。
      */
     BACKGROUND,
 
@@ -59,6 +68,7 @@ public enum ThreadMode {
      * use this mode if their execution might take some time, e.g. for network access. Avoid triggering a large number
      * of long running asynchronous subscriber methods at the same time to limit the number of concurrent threads. EventBus
      * uses a thread pool to efficiently reuse threads from completed asynchronous subscriber notifications.
+     * 与ThreadMode.MAIN_ORDERED相反，无论在哪个线程发送事件，都将事件加入到队列中，然后通过线程池执行事件
      */
     ASYNC
 }

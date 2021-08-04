@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 package org.greenrobot.eventbus;
-
+//ok
 final class Subscription {
     final Object subscriber;
     final SubscriberMethod subscriberMethod;

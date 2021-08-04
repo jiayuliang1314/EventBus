@@ -19,6 +19,8 @@ package org.greenrobot.eventbus;
  * An {@link RuntimeException} thrown in cases something went wrong inside EventBus.
  * 
  * @author Markus
+ *
+ * ok
  * 
  */
 public class EventBusException extends RuntimeException {

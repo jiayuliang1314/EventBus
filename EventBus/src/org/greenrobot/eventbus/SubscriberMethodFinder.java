@@ -40,6 +40,7 @@ class SubscriberMethodFinder {
 
     private List<SubscriberInfoIndex> subscriberInfoIndexes;
     private final boolean strictMethodVerification;
+    //
     private final boolean ignoreGeneratedIndex;
 
     private static final int POOL_SIZE = 4;
@@ -53,14 +54,18 @@ class SubscriberMethodFinder {
     }
 
     List<SubscriberMethod> findSubscriberMethods(Class<?> subscriberClass) {
+        //先从缓存里面读取，订阅者的 Class
         List<SubscriberMethod> subscriberMethods = METHOD_CACHE.get(subscriberClass);
         if (subscriberMethods != null) {
             return subscriberMethods;
         }
-
+        // ignoreGeneratedIndex属性表示是否忽略注解器生成的MyEventBusIndex。
+        // ignoreGeneratedIndex的默认值为false，可以通过EventBusBuilder来设置它的值
         if (ignoreGeneratedIndex) {
+            // 利用反射来获取订阅类中所有订阅方法信息
             subscriberMethods = findUsingReflection(subscriberClass);
         } else {
+            // 从注解器生成的MyEventBusIndex类中获得订阅类的订阅方法信息
             subscriberMethods = findUsingInfo(subscriberClass);
         }
         if (subscriberMethods.isEmpty()) {
@@ -72,7 +77,9 @@ class SubscriberMethodFinder {
         }
     }
 
+    //从注解器生成的MyEventBusIndex类中获得订阅类的订阅方法信息
     private List<SubscriberMethod> findUsingInfo(Class<?> subscriberClass) {
+        // FindState 涉及到 享元设计模式
         FindState findState = prepareFindState();
         findState.initForSubscriber(subscriberClass);
         while (findState.clazz != null) {
@@ -89,6 +96,7 @@ class SubscriberMethodFinder {
             }
             findState.moveToSuperclass();
         }
+        // 释放 findState 享元模式
         return getMethodsAndRelease(findState);
     }
 
@@ -137,12 +145,14 @@ class SubscriberMethodFinder {
         return null;
     }
 
+    // 利用反射来获取订阅类中所有订阅方法信息
     private List<SubscriberMethod> findUsingReflection(Class<?> subscriberClass) {
         FindState findState = prepareFindState();
         findState.initForSubscriber(subscriberClass);
         while (findState.clazz != null) {
+            // 寻找某个类中的所有事件响应方法
             findUsingReflectionInSingleClass(findState);
-            findState.moveToSuperclass();
+            findState.moveToSuperclass();//继续寻找当前类父类中注册的事件响应方法
         }
         return getMethodsAndRelease(findState);
     }
@@ -155,6 +165,7 @@ class SubscriberMethodFinder {
         } catch (Throwable th) {
             // Workaround for java.lang.NoClassDefFoundError, see https://github.com/greenrobot/EventBus/issues/149
             try {
+                // 通过反射来获取订阅类的所有方法
                 methods = findState.clazz.getMethods();
             } catch (LinkageError error) { // super class of NoClassDefFoundError to be a bit more broad...
                 String msg = "Could not inspect methods of " + findState.clazz.getName();
@@ -167,16 +178,23 @@ class SubscriberMethodFinder {
             }
             findState.skipSuperClasses = true;
         }
+        // for 循环所有方法
         for (Method method : methods) {
+            // 获取方法访问修饰符
             int modifiers = method.getModifiers();
+            //  找到所有声明为 public 的方法
             if ((modifiers & Modifier.PUBLIC) != 0 && (modifiers & MODIFIERS_IGNORE) == 0) {
-                Class<?>[] parameterTypes = method.getParameterTypes();
-                if (parameterTypes.length == 1) {
+                Class<?>[] parameterTypes = method.getParameterTypes();// 获取参数的的 Class
+                if (parameterTypes.length == 1) {// 只允许包含一个参数
                     Subscribe subscribeAnnotation = method.getAnnotation(Subscribe.class);
                     if (subscribeAnnotation != null) {
+                        // 获取事件的 Class ，也就是方法参数的 Class
                         Class<?> eventType = parameterTypes[0];
+                        // 检测添加
                         if (findState.checkAdd(method, eventType)) {
+                            // 获取 ThreadMode
                             ThreadMode threadMode = subscribeAnnotation.threadMode();
+                            // 往集合里面添加 SubscriberMethod ，解析方法注解所有的属性
                             findState.subscriberMethods.add(new SubscriberMethod(method, eventType, threadMode,
                                     subscribeAnnotation.priority(), subscribeAnnotation.sticky()));
                         }

@@ -19,6 +19,7 @@ package org.greenrobot.eventbus;
  * This Event is posted by EventBus when no subscriber is found for a posted event.
  * 
  * @author Markus
+ * ok
  */
 public final class NoSubscriberEvent {
     /** The {@link EventBus} instance to with the original event was posted to. */

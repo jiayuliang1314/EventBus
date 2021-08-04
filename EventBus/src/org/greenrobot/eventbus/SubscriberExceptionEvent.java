@@ -19,6 +19,7 @@ package org.greenrobot.eventbus;
  * This Event is posted by EventBus when an exception occurs inside a subscriber's event handling method.
  * 
  * @author Markus
+ * ok
  */
 public final class SubscriberExceptionEvent {
     /** The {@link EventBus} instance to with the original event was posted to. */

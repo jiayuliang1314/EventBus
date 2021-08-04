@@ -21,6 +21,10 @@ import org.greenrobot.eventbus.Logger;
 
 import java.util.logging.Level;
 
+/**
+ * 1.判断是Andorid isAndroidLogAvailable
+ * 2.构造函数，tag初始化
+ */
 public class AndroidLogger implements Logger {
 
     private static final boolean ANDROID_LOG_AVAILABLE;
@@ -35,17 +39,19 @@ public class AndroidLogger implements Logger {
         ANDROID_LOG_AVAILABLE = android;
     }
 
+    //1.判断是Android
     public static boolean isAndroidLogAvailable() {
         return ANDROID_LOG_AVAILABLE;
     }
 
 
     private final String tag;
-
+    //2.构造函数
     public AndroidLogger(String tag) {
         this.tag = tag;
     }
 
+    //3.log
     public void log(Level level, String msg) {
         if (level != Level.OFF) {
             Log.println(mapLevel(level), tag, msg);

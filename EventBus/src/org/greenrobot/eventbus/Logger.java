@@ -19,7 +19,7 @@ import android.os.Looper;
 import org.greenrobot.eventbus.android.AndroidLogger;
 
 import java.util.logging.Level;
-
+//log相关
 public interface Logger {
 
     void log(Level level, String msg);
@@ -62,7 +62,7 @@ public interface Logger {
 
     }
 
-    class Default {
+    class Default {//
         public static Logger get() {
             // also check main looper to see if we have "good" Android classes (not Stubs etc.)
             return AndroidLogger.isAndroidLogAvailable() && getAndroidMainLooperOrNull() != null

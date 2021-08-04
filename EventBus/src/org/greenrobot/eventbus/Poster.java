@@ -19,6 +19,7 @@ package org.greenrobot.eventbus;
  * Posts events.
  *
  * @author William Ferguson
+ * ok
  */
 interface Poster {
 

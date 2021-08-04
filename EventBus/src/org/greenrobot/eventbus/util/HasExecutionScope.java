@@ -15,7 +15,7 @@
  */
 
 package org.greenrobot.eventbus.util;
-
+//ok
 public interface HasExecutionScope {
     Object getExecutionScope();
 
