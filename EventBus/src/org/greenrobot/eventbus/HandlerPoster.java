@@ -20,6 +20,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
 
+//mainThreadPoster为HandlerPoster， 具体分析下HandlerPoster
 public class HandlerPoster extends Handler implements Poster {
 
     private final PendingPostQueue queue;
@@ -35,11 +36,14 @@ public class HandlerPoster extends Handler implements Poster {
     }
 
     public void enqueue(Subscription subscription, Object event) {
+        // 用subscription和event封装一个PendingPost对象
         PendingPost pendingPost = PendingPost.obtainPendingPost(subscription, event);
         synchronized (this) {
+            // 加入到队列中
             queue.enqueue(pendingPost);
             if (!handlerActive) {
                 handlerActive = true;
+                // sendMessage（）发送处理事件的消息，handleMessage()方法将被执行，将子线程切换到主线程
                 if (!sendMessage(obtainMessage())) {
                     throw new EventBusException("Could not send handler message");
                 }
@@ -52,11 +56,13 @@ public class HandlerPoster extends Handler implements Poster {
         boolean rescheduled = false;
         try {
             long started = SystemClock.uptimeMillis();
+            // 遍历队列
             while (true) {
                 PendingPost pendingPost = queue.poll();
                 if (pendingPost == null) {
                     synchronized (this) {
                         // Check again, this time in synchronized
+                        // 出队列，取出PendingPost对象
                         pendingPost = queue.poll();
                         if (pendingPost == null) {
                             handlerActive = false;
@@ -66,7 +72,7 @@ public class HandlerPoster extends Handler implements Poster {
                 }
                 eventBus.invokeSubscriber(pendingPost);
                 long timeInMethod = SystemClock.uptimeMillis() - started;
-                if (timeInMethod >= maxMillisInsideHandleMessage) {
+                if (timeInMethod >= maxMillisInsideHandleMessage) {//又发了次消息？？todo
                     if (!sendMessage(obtainMessage())) {
                         throw new EventBusException("Could not send handler message");
                     }

@@ -21,6 +21,7 @@ import java.util.logging.Level;
  * Posts events in background.
  *
  * @author Markus
+ * ok
  */
 final class BackgroundPoster implements Runnable, Poster {
 
@@ -35,11 +36,14 @@ final class BackgroundPoster implements Runnable, Poster {
     }
 
     public void enqueue(Subscription subscription, Object event) {
+        // 用subscription和event封装一个PendingPost对象
         PendingPost pendingPost = PendingPost.obtainPendingPost(subscription, event);
         synchronized (this) {
+            // 加入队列
             queue.enqueue(pendingPost);
             if (!executorRunning) {
                 executorRunning = true;
+                // 调用newCachedThreadPool线程池，执行任务 ？？？
                 eventBus.getExecutorService().execute(this);
             }
         }
@@ -49,7 +53,9 @@ final class BackgroundPoster implements Runnable, Poster {
     public void run() {
         try {
             try {
+                // 循环队列
                 while (true) {
+                    // 等待1秒，取出PendingPost对象
                     PendingPost pendingPost = queue.poll(1000);
                     if (pendingPost == null) {
                         synchronized (this) {

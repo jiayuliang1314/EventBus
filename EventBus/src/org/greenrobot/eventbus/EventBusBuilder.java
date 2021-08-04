@@ -31,25 +31,37 @@ import java.util.concurrent.Executors;
  */
 @SuppressWarnings("unused")
 public class EventBusBuilder {
+    //region 参数
+    //默认线程池,是一个核心0,最大Max,无缓存队列SynchronousQueue;如果大量事件一起发送可能导致OOM,一般需要更改一下线程池配置
+    //通过build的方法executorService(executorService)传递进来,主要用于异步和后台事件传递
     private final static ExecutorService DEFAULT_EXECUTOR_SERVICE = Executors.newCachedThreadPool();
 
+    //在订阅方法中抛出异常时,是否打印日志,在类中注解重写onSubscriberExceptionEvent可以监听到
     boolean logSubscriberExceptions = true;
+    //没有找到订阅方法,是否打印日志
     boolean logNoSubscriberMessages = true;
+    //在非订阅SubscriberExceptionEvent事件方法中抛出异常时, 是否发送SubscriberExceptionEvent事件
     boolean sendSubscriberExceptionEvent = true;
+    //没找到事件订阅方法,是否发送NoSubscriberEvent事件
     boolean sendNoSubscriberEvent = true;
+//    在非订阅SubscriberExceptionEvent事件方法中抛出异常时, 是否抛出EventBusException异常, 默认为false
     boolean throwSubscriberException;
-    boolean eventInheritance = true;
-    boolean ignoreGeneratedIndex;
-    boolean strictMethodVerification;
+
+    boolean eventInheritance = true; //发送子事件,是否发送父事件,默认为true,最好改成false,避免不必要的麻烦
+    //三个参数用于参照订阅方法
+    boolean ignoreGeneratedIndex;//是否直接用反射查找订阅方法(就是运行期查找,速度慢耗时,3.0以后优化使用索引的),默认是false
+    boolean strictMethodVerification;//非注解生成索引时,严格方法验证:当方法不符合格式(public,非abstract, 非static,非桥接方法(带范型？),只有一个参数)时,是否抛出EventBusException异常,默认false
     ExecutorService executorService = DEFAULT_EXECUTOR_SERVICE;
-    List<Class<?>> skipMethodVerificationForClasses;
-    List<SubscriberInfoIndex> subscriberInfoIndexes;
+    List<Class<?>> skipMethodVerificationForClasses;//检查以onEvent开头的方法,基本不用啦,都是使用注解自定义方法了
+    List<SubscriberInfoIndex> subscriberInfoIndexes;//注解生成的索引,在编译器生成,需要通过android-apt三方插件或annotationProcessor生成
     Logger logger;
     MainThreadSupport mainThreadSupport;
+    //endregion
 
     EventBusBuilder() {
     }
 
+    //region get/set
     /** Default: true */
     public EventBusBuilder logSubscriberExceptions(boolean logSubscriberExceptions) {
         this.logSubscriberExceptions = logSubscriberExceptions;
@@ -161,11 +173,12 @@ public class EventBusBuilder {
             return Logger.Default.get();
         }
     }
+    //endregion
 
     MainThreadSupport getMainThreadSupport() {
         if (mainThreadSupport != null) {
             return mainThreadSupport;
-        } else if (AndroidLogger.isAndroidLogAvailable()) {
+        } else if (AndroidLogger.isAndroidLogAvailable()) {//这个是Android
             Object looperOrNull = getAndroidMainLooperOrNull();
             return looperOrNull == null ? null :
                     new MainThreadSupport.AndroidHandlerMainThreadSupport((Looper) looperOrNull);
@@ -188,6 +201,8 @@ public class EventBusBuilder {
      * done only once before the first usage of the default EventBus.
      *
      * @throws EventBusException if there's already a default EventBus instance in place
+     *
+     * consistent 一致的; 始终如一的; 连续的; 持续的; 与…一致的; 相符的; 符合的; 不矛盾的;
      */
     public EventBus installDefaultEventBus() {
         synchronized (EventBus.class) {

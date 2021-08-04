@@ -20,7 +20,7 @@ import org.greenrobot.eventbus.SubscriberMethod;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.lang.reflect.Method;
-
+//todo superSubscriberInfoClass shouldCheckSuperclass
 /** Base class for generated subscriber meta info classes created by annotation processing. */
 public abstract class AbstractSubscriberInfo implements SubscriberInfo {
     private final Class subscriberClass;
