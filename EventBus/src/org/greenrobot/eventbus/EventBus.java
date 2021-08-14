@@ -39,16 +39,24 @@ import java.util.logging.Level;
  */
 public class EventBus {
 
+    //region 参数
     /** Log tag, apps may override it. */
     public static String TAG = "EventBus";
     //单例模式
     static volatile EventBus defaultInstance;
     //默认的defalut builder
     private static final EventBusBuilder DEFAULT_BUILDER = new EventBusBuilder();
+
+//    查找 eventClass 的所有父类和接口
     private static final Map<Class<?>, List<Class<?>>> eventTypesCache = new HashMap<>();
 
+    //event 和 Subscription 的map
     private final Map<Class<?>, CopyOnWriteArrayList<Subscription>> subscriptionsByEventType;
+
+    //一个Subscriber实例有多个event
     private final Map<Object, List<Class<?>>> typesBySubscriber;
+
+    //stick event的class 和 stickevent实例，只保存最新的实例
     private final Map<Class<?>, Object> stickyEvents;
 
     private final ThreadLocal<PostingThreadState> currentPostingThreadState = new ThreadLocal<PostingThreadState>() {
@@ -76,7 +84,9 @@ public class EventBus {
 
     private final int indexCount;
     private final Logger logger;
+    //endregion
 
+    //region 构造函数
     /** Convenience singleton for apps using a process-wide EventBus instance. */
     //单例模式
     public static EventBus getDefault() {
@@ -112,16 +122,22 @@ public class EventBus {
 
     EventBus(EventBusBuilder builder) {
         logger = builder.getLogger();
+
         subscriptionsByEventType = new HashMap<>();
+
         typesBySubscriber = new HashMap<>();
+
         stickyEvents = new ConcurrentHashMap<>();
+
         mainThreadSupport = builder.getMainThreadSupport();
         mainThreadPoster = mainThreadSupport != null ? mainThreadSupport.createPoster(this) : null;
         backgroundPoster = new BackgroundPoster(this);
         asyncPoster = new AsyncPoster(this);
         indexCount = builder.subscriberInfoIndexes != null ? builder.subscriberInfoIndexes.size() : 0;
+        //false false
         subscriberMethodFinder = new SubscriberMethodFinder(builder.subscriberInfoIndexes,
                 builder.strictMethodVerification, builder.ignoreGeneratedIndex);
+
         logSubscriberExceptions = builder.logSubscriberExceptions;
         logNoSubscriberMessages = builder.logNoSubscriberMessages;
         sendSubscriberExceptionEvent = builder.sendSubscriberExceptionEvent;
@@ -130,7 +146,9 @@ public class EventBus {
         eventInheritance = builder.eventInheritance;
         executorService = builder.executorService;
     }
+    //endregion
 
+    //region register
     /**
      * Registers the given subscriber to receive events. Subscribers must call {@link #unregister(Object)} once they
      * are no longer interested in receiving events.
@@ -190,7 +208,8 @@ public class EventBus {
         }
         // 将此事件类加入 订阅者事件类列表中
         subscribedEvents.add(eventType);
-        // 处理粘性事件
+        // 处理粘性事件，如果粘性事件，将最近的粘性事件实例，发送给方法，触发方法
+        //todo
         if (subscriberMethod.sticky) {
             if (eventInheritance) {
                 // Existing sticky events of all subclasses of eventType have to be considered.
@@ -200,6 +219,7 @@ public class EventBus {
                 Set<Map.Entry<Class<?>, Object>> entries = stickyEvents.entrySet();
                 for (Map.Entry<Class<?>, Object> entry : entries) {
                     Class<?> candidateEventType = entry.getKey();
+//                    isAssignableFrom()方法是判断是否为某个类的父类，instanceof关键字是判断是否某个类的子类。
                     if (eventType.isAssignableFrom(candidateEventType)) {
                         Object stickyEvent = entry.getValue();
                         checkPostStickyEventToSubscription(newSubscription, stickyEvent);
@@ -212,6 +232,7 @@ public class EventBus {
         }
     }
 
+    //todo
     private void checkPostStickyEventToSubscription(Subscription newSubscription, Object stickyEvent) {
         if (stickyEvent != null) {
             // If the subscriber is trying to abort the event, it will fail (event is not tracked in posting state)
@@ -219,7 +240,9 @@ public class EventBus {
             postToSubscription(newSubscription, stickyEvent, isMainThread());
         }
     }
+    //endregion
 
+    //region isMainThread isRegistered
     /**
      * Checks if the current thread is running in the main thread.
      * If there is no main thread support (e.g. non-Android), "true" is always returned. In that case MAIN thread
@@ -233,7 +256,9 @@ public class EventBus {
     public synchronized boolean isRegistered(Object subscriber) {
         return typesBySubscriber.containsKey(subscriber);
     }
+    //endregion
 
+    //region unregister unsubscribeByEventType
     /** Only updates subscriptionsByEventType, not typesBySubscriber! Caller must update typesBySubscriber. */
     private void unsubscribeByEventType(Object subscriber, Class<?> eventType) {
         // 获取事件类的所有订阅信息列表，将订阅信息从订阅信息集合中移除，同时将订阅信息中的active属性置为FALSE
@@ -269,7 +294,9 @@ public class EventBus {
             logger.log(Level.WARNING, "Subscriber to unregister was not registered before: " + subscriber.getClass());
         }
     }
+    //endregion
 
+    //region  post
     /** Posts the given event to the event bus. */
     public void post(Object event) {
         // currentPostingThreadState 是一个 ThreadLocal，
@@ -298,6 +325,7 @@ public class EventBus {
             }
         }
     }
+    //endregion
 
     /**
      * Called from a subscriber's event handling method, further event delivery will be canceled. Subsequent
@@ -322,6 +350,7 @@ public class EventBus {
         postingState.canceled = true;
     }
 
+    //region postSticky
     /**
      * Posts the given event to the event bus and holds on to the event (because it is sticky). The most recent sticky
      * event of an event's type is kept in memory for future access by subscribers using {@link Subscribe#sticky()}.
@@ -382,7 +411,9 @@ public class EventBus {
             stickyEvents.clear();
         }
     }
+    //endregion
 
+    //region hasSubscriberForEvent
     public boolean hasSubscriberForEvent(Class<?> eventClass) {
         List<Class<?>> eventTypes = lookupAllEventTypes(eventClass);
         if (eventTypes != null) {
@@ -400,7 +431,9 @@ public class EventBus {
         }
         return false;
     }
+    //endregion
 
+    //region postSingleEvent postSingleEventForEventType postToSubscription
     private void postSingleEvent(Object event, PostingThreadState postingState) throws Error {
         // 得到事件的Class
         Class<?> eventClass = event.getClass();
@@ -408,7 +441,7 @@ public class EventBus {
         boolean subscriptionFound = false;
         // 如果支持事件继承，默认为支持
         if (eventInheritance) {
-            // 查找 eventClass 的所有父类和接口
+            // 查找 eventClass 的所有父类和接口，包括他自己
             List<Class<?>> eventTypes = lookupAllEventTypes(eventClass);
             int countTypes = eventTypes.size();
             for (int h = 0; h < countTypes; h++) {
@@ -505,17 +538,26 @@ public class EventBus {
                 throw new IllegalStateException("Unknown thread mode: " + subscription.subscriberMethod.threadMode);
         }
     }
+    //endregion
 
+    //region 查找event的父类及父接口，存放到eventTypesCache包括他自己
     /** Looks up all Class objects including super classes and interfaces. Should also work for interfaces. */
+    //查找父类和接口
     private static List<Class<?>> lookupAllEventTypes(Class<?> eventClass) {
         synchronized (eventTypesCache) {
+            //找到缓存里是否有
             List<Class<?>> eventTypes = eventTypesCache.get(eventClass);
             if (eventTypes == null) {
+                //如果就没有，就新建一个
                 eventTypes = new ArrayList<>();
+                //从他自己开始，往上层一个一个加
                 Class<?> clazz = eventClass;
                 while (clazz != null) {
+                    //添加类
                     eventTypes.add(clazz);
+                    //添加接口
                     addInterfaces(eventTypes, clazz.getInterfaces());
+                    //查找父类
                     clazz = clazz.getSuperclass();
                 }
                 eventTypesCache.put(eventClass, eventTypes);
@@ -525,15 +567,19 @@ public class EventBus {
     }
 
     /** Recurses through super interfaces. */
+    //递归调用
     static void addInterfaces(List<Class<?>> eventTypes, Class<?>[] interfaces) {
         for (Class<?> interfaceClass : interfaces) {
             if (!eventTypes.contains(interfaceClass)) {
                 eventTypes.add(interfaceClass);
+                //递归调用
                 addInterfaces(eventTypes, interfaceClass.getInterfaces());
             }
         }
     }
+    //endregion
 
+    //region invokeSubscriber 触发事件响应
     /**
      * Invokes the subscriber if the subscriptions is still active. Skipping subscriptions prevents race conditions
      * between {@link #unregister(Object)} and event delivery. Otherwise the event might be delivered after the
@@ -580,7 +626,7 @@ public class EventBus {
             if (sendSubscriberExceptionEvent) {
                 SubscriberExceptionEvent exEvent = new SubscriberExceptionEvent(this, cause, event,
                         subscription.subscriber);
-                post(exEvent);
+                post(exEvent);//todo
             }
         }
     }
@@ -594,7 +640,9 @@ public class EventBus {
         Object event;
         boolean canceled;
     }
+    //endregion
 
+    //region ok
     ExecutorService getExecutorService() {
         return executorService;
     }
@@ -615,4 +663,5 @@ public class EventBus {
     public String toString() {
         return "EventBus[indexCount=" + indexCount + ", eventInheritance=" + eventInheritance + "]";
     }
+    //endregion
 }

@@ -40,7 +40,7 @@ public abstract class AbstractSubscriberInfo implements SubscriberInfo {
     }
 
     @Override
-    public SubscriberInfo getSuperSubscriberInfo() {
+    public SubscriberInfo getSuperSubscriberInfo() {//？？todo 干哈的
         if(superSubscriberInfoClass == null) {
             return null;
         }

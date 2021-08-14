@@ -44,15 +44,21 @@ public class EventBusBuilder {
     boolean sendSubscriberExceptionEvent = true;
     //没找到事件订阅方法,是否发送NoSubscriberEvent事件
     boolean sendNoSubscriberEvent = true;
+
 //    在非订阅SubscriberExceptionEvent事件方法中抛出异常时, 是否抛出EventBusException异常, 默认为false
     boolean throwSubscriberException;
 
+    //event继承
     boolean eventInheritance = true; //发送子事件,是否发送父事件,默认为true,最好改成false,避免不必要的麻烦
     //三个参数用于参照订阅方法
     boolean ignoreGeneratedIndex;//是否直接用反射查找订阅方法(就是运行期查找,速度慢耗时,3.0以后优化使用索引的),默认是false
-    boolean strictMethodVerification;//非注解生成索引时,严格方法验证:当方法不符合格式(public,非abstract, 非static,非桥接方法(带范型？),只有一个参数)时,是否抛出EventBusException异常,默认false
+    boolean strictMethodVerification;
+    //非注解生成索引时,严格方法验证:当方法不符合格式(public,非abstract, 非static,非桥接方法(带范型？),只有一个参数)时,
+    //是否抛出EventBusException异常,默认false
+
     ExecutorService executorService = DEFAULT_EXECUTOR_SERVICE;
-    List<Class<?>> skipMethodVerificationForClasses;//检查以onEvent开头的方法,基本不用啦,都是使用注解自定义方法了
+    //没有地方用到
+    List<Class<?>> skipMethodVerificationForClasses;//检查以onEvent开头的方法,基本不用啦,都是使用注解自定义方法了//todo
     List<SubscriberInfoIndex> subscriberInfoIndexes;//注解生成的索引,在编译器生成,需要通过android-apt三方插件或annotationProcessor生成
     Logger logger;
     MainThreadSupport mainThreadSupport;
@@ -81,6 +87,7 @@ public class EventBusBuilder {
     }
 
     /** Default: true */
+    //
     public EventBusBuilder sendNoSubscriberEvent(boolean sendNoSubscriberEvent) {
         this.sendNoSubscriberEvent = sendNoSubscriberEvent;
         return this;
@@ -105,6 +112,8 @@ public class EventBusBuilder {
      * <p/>
      * However, keep in mind that event posting usually consumes just a small proportion of CPU time inside an app,
      * unless it is posting at high rates, e.g. hundreds/thousands of events per second.
+     *
+     * 发送子事件,是否发送父事件,默认为true
      */
     public EventBusBuilder eventInheritance(boolean eventInheritance) {
         this.eventInheritance = eventInheritance;
@@ -126,6 +135,7 @@ public class EventBusBuilder {
      * exclude subscriber classes from this check. Also disables checks for method modifiers (public, not static nor
      * abstract).
      */
+    ////检查以onEvent开头的方法,基本不用啦,都是使用注解自定义方法了 todo
     public EventBusBuilder skipMethodVerificationFor(Class<?> clazz) {
         if (skipMethodVerificationForClasses == null) {
             skipMethodVerificationForClasses = new ArrayList<>();

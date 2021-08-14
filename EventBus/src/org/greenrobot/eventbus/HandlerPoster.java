@@ -70,8 +70,10 @@ public class HandlerPoster extends Handler implements Poster {
                         }
                     }
                 }
+                //在主线程处理事件
                 eventBus.invokeSubscriber(pendingPost);
                 long timeInMethod = SystemClock.uptimeMillis() - started;
+                //处理事件完了，大于10ms则重新取消息处理
                 if (timeInMethod >= maxMillisInsideHandleMessage) {//又发了次消息？？todo
                     if (!sendMessage(obtainMessage())) {
                         throw new EventBusException("Could not send handler message");
