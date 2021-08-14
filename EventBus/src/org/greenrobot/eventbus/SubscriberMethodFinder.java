@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 class SubscriberMethodFinder {
+    //region 参数
     /*
      * In newer class files, compilers may add methods. Those are called bridge or synthetic methods.
      * EventBus must ignore both. There modifiers are not public but defined in the Java class file format:
@@ -36,23 +37,27 @@ class SubscriberMethodFinder {
     private static final int SYNTHETIC = 0x1000;
 
     private static final int MODIFIERS_IGNORE = Modifier.ABSTRACT | Modifier.STATIC | BRIDGE | SYNTHETIC;
+    //subscriberClass 方法
     private static final Map<Class<?>, List<SubscriberMethod>> METHOD_CACHE = new ConcurrentHashMap<>();
 
     private List<SubscriberInfoIndex> subscriberInfoIndexes;
     private final boolean strictMethodVerification;
-    //
     private final boolean ignoreGeneratedIndex;
 
     private static final int POOL_SIZE = 4;
     private static final FindState[] FIND_STATE_POOL = new FindState[POOL_SIZE];
+    //endregion
 
+    //region ok 构造函数
     SubscriberMethodFinder(List<SubscriberInfoIndex> subscriberInfoIndexes, boolean strictMethodVerification,
                            boolean ignoreGeneratedIndex) {
         this.subscriberInfoIndexes = subscriberInfoIndexes;
         this.strictMethodVerification = strictMethodVerification;
         this.ignoreGeneratedIndex = ignoreGeneratedIndex;
     }
+    //endregion
 
+    //region ok findSubscriberMethods
     List<SubscriberMethod> findSubscriberMethods(Class<?> subscriberClass) {
         //先从缓存里面读取，订阅者的 Class
         List<SubscriberMethod> subscriberMethods = METHOD_CACHE.get(subscriberClass);
@@ -76,13 +81,16 @@ class SubscriberMethodFinder {
             return subscriberMethods;
         }
     }
+    //endregion
 
-    //从注解器生成的MyEventBusIndex类中获得订阅类的订阅方法信息
+    //region todo findUsingInfo
+    //从注解器生成的MyEventBusIndex类中获得订阅类的订阅方法信息 // 使用apt提前解析的订阅者信息
     private List<SubscriberMethod> findUsingInfo(Class<?> subscriberClass) {
         // FindState 涉及到 享元设计模式
         FindState findState = prepareFindState();
         findState.initForSubscriber(subscriberClass);
         while (findState.clazz != null) {
+            //
             findState.subscriberInfo = getSubscriberInfo(findState);
             if (findState.subscriberInfo != null) {
                 SubscriberMethod[] array = findState.subscriberInfo.getSubscriberMethods();
@@ -100,6 +108,30 @@ class SubscriberMethodFinder {
         return getMethodsAndRelease(findState);
     }
 
+    private SubscriberInfo getSubscriberInfo(FindState findState) {
+        //看样子getSuperSubscriberInfo会一直为null
+        //不太懂这里 todo
+        if (findState.subscriberInfo != null && findState.subscriberInfo.getSuperSubscriberInfo() != null) {
+            SubscriberInfo superclassInfo = findState.subscriberInfo.getSuperSubscriberInfo();
+            if (findState.clazz == superclassInfo.getSubscriberClass()) {
+                return superclassInfo;
+            }
+        }
+        if (subscriberInfoIndexes != null) {
+            for (SubscriberInfoIndex index : subscriberInfoIndexes) {
+                SubscriberInfo info = index.getSubscriberInfo(findState.clazz);
+                if (info != null) {
+                    return info;
+                }
+            }
+        }
+        return null;
+    }
+    //endregion
+
+
+
+    //region ok getMethodsAndRelease prepareFindState clearCaches
     private List<SubscriberMethod> getMethodsAndRelease(FindState findState) {
         List<SubscriberMethod> subscriberMethods = new ArrayList<>(findState.subscriberMethods);
         findState.recycle();
@@ -127,23 +159,12 @@ class SubscriberMethodFinder {
         return new FindState();
     }
 
-    private SubscriberInfo getSubscriberInfo(FindState findState) {
-        if (findState.subscriberInfo != null && findState.subscriberInfo.getSuperSubscriberInfo() != null) {
-            SubscriberInfo superclassInfo = findState.subscriberInfo.getSuperSubscriberInfo();
-            if (findState.clazz == superclassInfo.getSubscriberClass()) {
-                return superclassInfo;
-            }
-        }
-        if (subscriberInfoIndexes != null) {
-            for (SubscriberInfoIndex index : subscriberInfoIndexes) {
-                SubscriberInfo info = index.getSubscriberInfo(findState.clazz);
-                if (info != null) {
-                    return info;
-                }
-            }
-        }
-        return null;
+    static void clearCaches() {
+        METHOD_CACHE.clear();
     }
+    //endregion
+
+
 
     // 利用反射来获取订阅类中所有订阅方法信息
     private List<SubscriberMethod> findUsingReflection(Class<?> subscriberClass) {
@@ -212,21 +233,28 @@ class SubscriberMethodFinder {
         }
     }
 
-    static void clearCaches() {
-        METHOD_CACHE.clear();
-    }
+
 
     static class FindState {
+        //region 参数
+        //订阅方法集合
         final List<SubscriberMethod> subscriberMethods = new ArrayList<>();
+        //eventtype对应的方法
         final Map<Class, Object> anyMethodByEventType = new HashMap<>();
+        //methdkey对应的订阅者
         final Map<String, Class> subscriberClassByMethodKey = new HashMap<>();
         final StringBuilder methodKeyBuilder = new StringBuilder(128);
 
+        //当前订阅者
         Class<?> subscriberClass;
-        Class<?> clazz;
+        //当前查找的类
+        Class<?> clazz;//父类，初始化的时候就是这个类
+        //是否跳过父类查找
         boolean skipSuperClasses;
         SubscriberInfo subscriberInfo;
+        //endregion
 
+        //region initForSubscriber recycle
         void initForSubscriber(Class<?> subscriberClass) {
             this.subscriberClass = clazz = subscriberClass;
             skipSuperClasses = false;
@@ -243,44 +271,91 @@ class SubscriberMethodFinder {
             skipSuperClasses = false;
             subscriberInfo = null;
         }
+        //endregion
 
+        //region checkAdd()方法用来判断FindState中是否已经添加过将该事件类型为key的键值对，没添加过则返回true
         boolean checkAdd(Method method, Class<?> eventType) {
             // 2 level check: 1st level with event type only (fast), 2nd level with complete signature when required.
             // Usually a subscriber doesn't have methods listening to the same event type.
+
+            // 1.检查eventType是否已经注册过对应的方法（一般都没有）
             Object existing = anyMethodByEventType.put(eventType, method);
             if (existing == null) {
+//                第一种是判断当前类中是否已经有这个EventType和对应的订阅方法，一般一个类不会有对同
+//                一个EventType写多个方法，会直接返回true，进行保存。
+                //如果没有，则返回true
                 return true;
             } else {
+
+                // 2. 如果已经有方法注册了这个eventType
+//                但是如果出现了同一个类中同样的EventType写了多个方法，该如何处理？
+
+                //a.1 假如注册了3个方法，方法名不一样afun1 afun2 afun3
+                //a.7 afun3 的时候existing 对象不是method了
+                //b.1 子类bfun_child，父类也注册了bfun_parent
                 if (existing instanceof Method) {
+                    //这里步骤的意义在于往subscriberClassByMethodKey map里假如第一个方法
+                    //a.2 传入以前的方法afun1
+                    //b.2 传入以前的方法bfun_child
                     if (!checkAddWithMethodSignature((Method) existing, eventType)) {
                         // Paranoia check
                         throw new IllegalStateException();
                     }
                     // Put any non-Method object to "consume" the existing Method
+                    //a.4 anyMethodByEventType eventType设置了个不是Method的对象
+                    //b.4 anyMethodByEventType eventType设置了个不是Method的对象
                     anyMethodByEventType.put(eventType, this);
                 }
+                //a.5 传入现在的方法afun2
+                //a.8 传入现在的方法afun3
+                //b.5 传入现在的方法bfun_parent
                 return checkAddWithMethodSignature(method, eventType);
+
             }
         }
 
         private boolean checkAddWithMethodSignature(Method method, Class<?> eventType) {
+            // 以[方法名>eventType]为Key
             methodKeyBuilder.setLength(0);
             methodKeyBuilder.append(method.getName());
             methodKeyBuilder.append('>').append(eventType.getName());
 
             String methodKey = methodKeyBuilder.toString();
-            Class<?> methodClass = method.getDeclaringClass();
+
+            // 拿到新的订阅方法所属类
+            Class<?> methodClass = method.getDeclaringClass();//定义的类，可能是父类
             Class<?> methodClassOld = subscriberClassByMethodKey.put(methodKey, methodClass);
+
+            //a.3 传入以前的方法afun1,methodClassOld为null,并保存到了subscriberClassByMethodKey afun1->key，返回true
+            //b.3 传入以前的方法bfun_child,methodClassOld为null,并保存到了subscriberClassByMethodKey bfun_child->key，返回true
+
+            //a.6 传入现在的方法afun2，methodClassOld为null，并保存到了subscriberClassByMethodKey afun2->key，返回true
+            //b.6 传入现在的方法bfun_parent，methodClassOld为子类，methodClass为父类
+            //a.8 传入现在的方法afun3，methodClassOld为null，并保存到了subscriberClassByMethodKey afun3->key，返回true
+//            对于同一类中同样的EventType写了多个方法，因为方法名不同，所以[方法名>eventType]的Key不同，
+//            methodClassOld会为null，直接返回 true。所以这种情况会将所有相同EventType的方法都进行保存。
+//            对于子类重写父类方法的情况，则methodClassOld（即子类）不为null,并且methodClassOld也不是methodClass的父类，
+//            所以会返回false。即对于子类重写父类订阅方法，只会保存子类的订阅方法，忽略父类的订阅方法。
+
+//            isAssignableFrom()方法是判断是否为某个类的父类，instanceof关键字是判断是否某个类的子类。
+            //b.7 传入现在的方法bfun_parent，methodClassOld为子类，methodClass为父类
             if (methodClassOld == null || methodClassOld.isAssignableFrom(methodClass)) {
                 // Only add if not already found in a sub class
                 return true;
             } else {
+//                这次根据 方法名>参数名进行完整校验,因为同一个类中同名同参的函数是不存在的,而同名不同参的在前一步已经被过滤了，
+//                所以这里确保在一个类中不会重复注册.
+//                但如果子类重写父类的方法的话,就会出现相同的methodKey。这时EventBus会做一次验证,
+//                并保留子类的订阅信息。由于扫描是由子类向父类的顺序，故此时应当保留methodClassOld而忽略methodClass。如果代码上的注释 Revert the put
+                //b.8 传入现在的方法bfun_parent，methodClassOld为子类，methodClass为父类，subscriberClassByMethodKey保存子类的，返回false，不保存
                 // Revert the put, old class is further down the class hierarchy
                 subscriberClassByMethodKey.put(methodKey, methodClassOld);
                 return false;
             }
         }
+        //endregion
 
+        //region moveToSuperclass
         void moveToSuperclass() {
             if (skipSuperClasses) {
                 clazz = null;
@@ -295,6 +370,7 @@ class SubscriberMethodFinder {
                 }
             }
         }
+        //endregion
     }
 
 }

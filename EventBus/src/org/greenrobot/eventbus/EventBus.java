@@ -47,7 +47,7 @@ public class EventBus {
     //默认的defalut builder
     private static final EventBusBuilder DEFAULT_BUILDER = new EventBusBuilder();
 
-//    查找 eventClass 的所有父类和接口
+//    查找 eventClass 的所有父类和接口，包括他自己
     private static final Map<Class<?>, List<Class<?>>> eventTypesCache = new HashMap<>();
 
     //event 和 Subscription 的map
