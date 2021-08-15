@@ -25,6 +25,7 @@ final class PendingPost {
     Subscription subscription;
     PendingPost next;
 
+    //构造函数
     private PendingPost(Object event, Subscription subscription) {
         this.event = event;
         this.subscription = subscription;

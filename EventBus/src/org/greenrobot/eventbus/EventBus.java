@@ -209,7 +209,6 @@ public class EventBus {
         // 将此事件类加入 订阅者事件类列表中
         subscribedEvents.add(eventType);
         // 处理粘性事件，如果粘性事件，将最近的粘性事件实例，发送给方法，触发方法
-        //todo
         if (subscriberMethod.sticky) {
             if (eventInheritance) {
                 // Existing sticky events of all subclasses of eventType have to be considered.
@@ -232,7 +231,6 @@ public class EventBus {
         }
     }
 
-    //todo
     private void checkPostStickyEventToSubscription(Subscription newSubscription, Object stickyEvent) {
         if (stickyEvent != null) {
             // If the subscriber is trying to abort the event, it will fail (event is not tracked in posting state)
@@ -292,37 +290,6 @@ public class EventBus {
             typesBySubscriber.remove(subscriber);
         } else {
             logger.log(Level.WARNING, "Subscriber to unregister was not registered before: " + subscriber.getClass());
-        }
-    }
-    //endregion
-
-    //region  post
-    /** Posts the given event to the event bus. */
-    public void post(Object event) {
-        // currentPostingThreadState 是一个 ThreadLocal，
-        // 他的特点是获取当前线程一份独有的变量数据，不受其他线程影响。
-        // 这个在 Handler 里面有过源码分析
-        PostingThreadState postingState = currentPostingThreadState.get();
-        // postingState 就是获取到的线程独有的变量数据
-        List<Object> eventQueue = postingState.eventQueue;
-        // 把 post 的事件添加到事件队列
-        eventQueue.add(event);
-        // 如果没有处在事件发布状态，那么开始发送事件并一直保持发布状态
-        if (!postingState.isPosting) {
-            // 是否是主线程
-            postingState.isMainThread = isMainThread();
-            postingState.isPosting = true;
-            if (postingState.canceled) {
-                throw new EventBusException("Internal error. Abort state was not reset");
-            }
-            try {
-                while (!eventQueue.isEmpty()) {
-                    postSingleEvent(eventQueue.remove(0), postingState);
-                }
-            } finally {
-                postingState.isPosting = false;
-                postingState.isMainThread = false;
-            }
         }
     }
     //endregion
@@ -433,7 +400,36 @@ public class EventBus {
     }
     //endregion
 
-    //region postSingleEvent postSingleEventForEventType postToSubscription
+    //region post postSingleEvent postSingleEventForEventType postToSubscription
+    /** Posts the given event to the event bus. */
+    public void post(Object event) {
+        // currentPostingThreadState 是一个 ThreadLocal，
+        // 他的特点是获取当前线程一份独有的变量数据，不受其他线程影响。
+        // 这个在 Handler 里面有过源码分析
+        PostingThreadState postingState = currentPostingThreadState.get();
+        // postingState 就是获取到的线程独有的变量数据
+        List<Object> eventQueue = postingState.eventQueue;
+        // 把 post 的事件添加到事件队列
+        eventQueue.add(event);
+        // 如果没有处在事件发布状态，那么开始发送事件并一直保持发布状态
+        if (!postingState.isPosting) {
+            // 是否是主线程
+            postingState.isMainThread = isMainThread();
+            postingState.isPosting = true;
+            if (postingState.canceled) {
+                throw new EventBusException("Internal error. Abort state was not reset");
+            }
+            try {
+                while (!eventQueue.isEmpty()) {
+                    postSingleEvent(eventQueue.remove(0), postingState);
+                }
+            } finally {
+                postingState.isPosting = false;
+                postingState.isMainThread = false;
+            }
+        }
+    }
+
     private void postSingleEvent(Object event, PostingThreadState postingState) throws Error {
         // 得到事件的Class
         Class<?> eventClass = event.getClass();
@@ -626,7 +622,7 @@ public class EventBus {
             if (sendSubscriberExceptionEvent) {
                 SubscriberExceptionEvent exEvent = new SubscriberExceptionEvent(this, cause, event,
                         subscription.subscriber);
-                post(exEvent);//todo
+                post(exEvent);
             }
         }
     }

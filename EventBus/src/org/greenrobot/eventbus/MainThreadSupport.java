@@ -29,7 +29,7 @@ public interface MainThreadSupport {
 
     class AndroidHandlerMainThreadSupport implements MainThreadSupport {
 
-        private final Looper looper;
+        private final Looper looper;//主线程looper
 
         public AndroidHandlerMainThreadSupport(Looper looper) {
             this.looper = looper;

@@ -83,7 +83,7 @@ class SubscriberMethodFinder {
     }
     //endregion
 
-    //region todo findUsingInfo
+    //region findUsingInfo
     //从注解器生成的MyEventBusIndex类中获得订阅类的订阅方法信息 // 使用apt提前解析的订阅者信息
     private List<SubscriberMethod> findUsingInfo(Class<?> subscriberClass) {
         // FindState 涉及到 享元设计模式
@@ -132,6 +132,7 @@ class SubscriberMethodFinder {
 
 
     //region ok getMethodsAndRelease prepareFindState clearCaches
+    //享元模式本质就是将大量的相似的对象的公共的不会变化的部分抽象出来，作为静态变量，作为全局唯一的对象，让所有的对象共同使用这一组对象，达到节约内存的目的。
     private List<SubscriberMethod> getMethodsAndRelease(FindState findState) {
         List<SubscriberMethod> subscriberMethods = new ArrayList<>(findState.subscriberMethods);
         findState.recycle();
@@ -294,7 +295,7 @@ class SubscriberMethodFinder {
                 //a.7 afun3 的时候existing 对象不是method了
                 //b.1 子类bfun_child，父类也注册了bfun_parent
                 if (existing instanceof Method) {
-                    //这里步骤的意义在于往subscriberClassByMethodKey map里假如第一个方法
+                    //这里步骤的意义在于往subscriberClassByMethodKey map里加入第一个方法
                     //a.2 传入以前的方法afun1
                     //b.2 传入以前的方法bfun_child
                     if (!checkAddWithMethodSignature((Method) existing, eventType)) {
