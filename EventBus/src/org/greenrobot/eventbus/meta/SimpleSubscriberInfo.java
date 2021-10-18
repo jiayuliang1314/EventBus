@@ -30,6 +30,7 @@ public class SimpleSubscriberInfo extends AbstractSubscriberInfo {
         this.methodInfos = methodInfos;
     }
 
+    //通过methodInfos获取SubscriberMethod
     @Override
     public synchronized SubscriberMethod[] getSubscriberMethods() {
         int length = methodInfos.length;

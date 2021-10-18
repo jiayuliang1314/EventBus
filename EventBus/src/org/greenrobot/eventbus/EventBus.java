@@ -47,13 +47,13 @@ public class EventBus {
     //默认的defalut builder
     private static final EventBusBuilder DEFAULT_BUILDER = new EventBusBuilder();
 
-//    查找 eventClass 的所有父类和接口，包括他自己
+//    查找 eventClass 的所有父类和接口，包括他自己,当发送一个event的时候，检查是否有注册他的父类，接口相关的类
     private static final Map<Class<?>, List<Class<?>>> eventTypesCache = new HashMap<>();
 
     //event 和 Subscription 的map
     private final Map<Class<?>, CopyOnWriteArrayList<Subscription>> subscriptionsByEventType;
 
-    //一个Subscriber实例有多个event
+    //一个Subscriber实例有多个event,主要用在unregister的时候，把subscriptionsByEventType里相关的Subscription清除
     private final Map<Object, List<Class<?>>> typesBySubscriber;
 
     //stick event的class 和 stickevent实例，只保存最新的实例
@@ -148,7 +148,7 @@ public class EventBus {
     }
     //endregion
 
-    //region register
+    //region 1.register
     /**
      * Registers the given subscriber to receive events. Subscribers must call {@link #unregister(Object)} once they
      * are no longer interested in receiving events.
@@ -256,7 +256,7 @@ public class EventBus {
     }
     //endregion
 
-    //region unregister unsubscribeByEventType
+    //region 3.unregister unsubscribeByEventType
     /** Only updates subscriptionsByEventType, not typesBySubscriber! Caller must update typesBySubscriber. */
     private void unsubscribeByEventType(Object subscriber, Class<?> eventType) {
         // 获取事件类的所有订阅信息列表，将订阅信息从订阅信息集合中移除，同时将订阅信息中的active属性置为FALSE
@@ -317,7 +317,7 @@ public class EventBus {
         postingState.canceled = true;
     }
 
-    //region postSticky
+    //region 4.postSticky
     /**
      * Posts the given event to the event bus and holds on to the event (because it is sticky). The most recent sticky
      * event of an event's type is kept in memory for future access by subscribers using {@link Subscribe#sticky()}.
@@ -400,7 +400,7 @@ public class EventBus {
     }
     //endregion
 
-    //region post postSingleEvent postSingleEventForEventType postToSubscription
+    //region 2.post postSingleEvent postSingleEventForEventType postToSubscription
     /** Posts the given event to the event bus. */
     public void post(Object event) {
         // currentPostingThreadState 是一个 ThreadLocal，

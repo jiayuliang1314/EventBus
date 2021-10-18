@@ -20,7 +20,7 @@ import java.lang.reflect.Method;
 /** Used internally by EventBus and generated subscriber indexes. */
 //ok
 public class SubscriberMethod {
-    final Method method;
+    final Method method;//反射里边的
     final ThreadMode threadMode;
     final Class<?> eventType;
     final int priority;

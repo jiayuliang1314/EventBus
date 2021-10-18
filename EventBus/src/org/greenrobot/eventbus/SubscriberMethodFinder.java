@@ -39,21 +39,26 @@ class SubscriberMethodFinder {
     private static final int MODIFIERS_IGNORE = Modifier.ABSTRACT | Modifier.STATIC | BRIDGE | SYNTHETIC;
     //subscriberClass 方法
     private static final Map<Class<?>, List<SubscriberMethod>> METHOD_CACHE = new ConcurrentHashMap<>();
-
-    private List<SubscriberInfoIndex> subscriberInfoIndexes;
-    private final boolean strictMethodVerification;
-    private final boolean ignoreGeneratedIndex;
-
     private static final int POOL_SIZE = 4;
+    //干哈的？？
     private static final FindState[] FIND_STATE_POOL = new FindState[POOL_SIZE];
+    private final boolean strictMethodVerification;//严格方法检查，默认false，public, non-static, and non-abstract，一个参数
+    private final boolean ignoreGeneratedIndex;//忽略生成的index，默认false
+    //注解处理器生成的SubscriberInfoIndex
+    private final List<SubscriberInfoIndex> subscriberInfoIndexes;
     //endregion
 
     //region ok 构造函数
     SubscriberMethodFinder(List<SubscriberInfoIndex> subscriberInfoIndexes, boolean strictMethodVerification,
                            boolean ignoreGeneratedIndex) {
-        this.subscriberInfoIndexes = subscriberInfoIndexes;
-        this.strictMethodVerification = strictMethodVerification;
-        this.ignoreGeneratedIndex = ignoreGeneratedIndex;
+        this.subscriberInfoIndexes = subscriberInfoIndexes;//注解处理器生成的SubscriberInfoIndex
+        this.strictMethodVerification = strictMethodVerification;//false
+        this.ignoreGeneratedIndex = ignoreGeneratedIndex;//false
+    }
+    //endregion
+
+    static void clearCaches() {
+        METHOD_CACHE.clear();
     }
     //endregion
 
@@ -81,7 +86,6 @@ class SubscriberMethodFinder {
             return subscriberMethods;
         }
     }
-    //endregion
 
     //region findUsingInfo
     //从注解器生成的MyEventBusIndex类中获得订阅类的订阅方法信息 // 使用apt提前解析的订阅者信息
@@ -90,12 +94,17 @@ class SubscriberMethodFinder {
         FindState findState = prepareFindState();
         findState.initForSubscriber(subscriberClass);
         while (findState.clazz != null) {
-            //
+            //遍历subscriberInfoIndexes里的 SubscriberInfoIndex，
+            //如果其getSubscriberInfo(findState.clazz)
+            //不为null则返回得到的SubscriberInfo
             findState.subscriberInfo = getSubscriberInfo(findState);
             if (findState.subscriberInfo != null) {
+                //得到所有的SubscriberMethod
                 SubscriberMethod[] array = findState.subscriberInfo.getSubscriberMethods();
                 for (SubscriberMethod subscriberMethod : array) {
+                    //检查
                     if (findState.checkAdd(subscriberMethod.method, subscriberMethod.eventType)) {
+                        //添加
                         findState.subscriberMethods.add(subscriberMethod);
                     }
                 }
@@ -107,16 +116,19 @@ class SubscriberMethodFinder {
         // 释放 findState 享元模式
         return getMethodsAndRelease(findState);
     }
+    //endregion
 
     private SubscriberInfo getSubscriberInfo(FindState findState) {
-        //看样子getSuperSubscriberInfo会一直为null
-        //不太懂这里 todo
         if (findState.subscriberInfo != null && findState.subscriberInfo.getSuperSubscriberInfo() != null) {
+            //这个时候，clazz代表父类，getSuperSubscriberInfo得到父类的SubscriberInfo的class刚好是clazz
+            //则直接返回
             SubscriberInfo superclassInfo = findState.subscriberInfo.getSuperSubscriberInfo();
             if (findState.clazz == superclassInfo.getSubscriberClass()) {
                 return superclassInfo;
             }
         }
+        //遍历subscriberInfoIndexes里的 SubscriberInfoIndex，如果其getSubscriberInfo(findState.clazz)
+        //不为null则返回得到的SubscriberInfo
         if (subscriberInfoIndexes != null) {
             for (SubscriberInfoIndex index : subscriberInfoIndexes) {
                 SubscriberInfo info = index.getSubscriberInfo(findState.clazz);
@@ -127,9 +139,6 @@ class SubscriberMethodFinder {
         }
         return null;
     }
-    //endregion
-
-
 
     //region ok getMethodsAndRelease prepareFindState clearCaches
     //享元模式本质就是将大量的相似的对象的公共的不会变化的部分抽象出来，作为静态变量，作为全局唯一的对象，让所有的对象共同使用这一组对象，达到节约内存的目的。
@@ -147,6 +156,7 @@ class SubscriberMethodFinder {
         return subscriberMethods;
     }
 
+    //从FindState[]数组缓存里取一个FindState
     private FindState prepareFindState() {
         synchronized (FIND_STATE_POOL) {
             for (int i = 0; i < POOL_SIZE; i++) {
@@ -159,13 +169,7 @@ class SubscriberMethodFinder {
         }
         return new FindState();
     }
-
-    static void clearCaches() {
-        METHOD_CACHE.clear();
-    }
     //endregion
-
-
 
     // 利用反射来获取订阅类中所有订阅方法信息
     private List<SubscriberMethod> findUsingReflection(Class<?> subscriberClass) {
@@ -179,10 +183,12 @@ class SubscriberMethodFinder {
         return getMethodsAndRelease(findState);
     }
 
+    //寻找某个类中的所有事件响应方法
     private void findUsingReflectionInSingleClass(FindState findState) {
         Method[] methods;
         try {
             // This is faster than getMethods, especially when subscribers are fat classes like Activities
+            //获取所有的方法
             methods = findState.clazz.getDeclaredMethods();
         } catch (Throwable th) {
             // Workaround for java.lang.NoClassDefFoundError, see https://github.com/greenrobot/EventBus/issues/149
@@ -198,13 +204,14 @@ class SubscriberMethodFinder {
                 }
                 throw new EventBusException(msg, error);
             }
+            //出现异常的时候skipSuperClasses设置为true
             findState.skipSuperClasses = true;
         }
         // for 循环所有方法
         for (Method method : methods) {
             // 获取方法访问修饰符
             int modifiers = method.getModifiers();
-            //  找到所有声明为 public 的方法
+            //  找到所有声明为 public 的方法，并且不是忽略的方法
             if ((modifiers & Modifier.PUBLIC) != 0 && (modifiers & MODIFIERS_IGNORE) == 0) {
                 Class<?>[] parameterTypes = method.getParameterTypes();// 获取参数的的 Class
                 if (parameterTypes.length == 1) {// 只允许包含一个参数
@@ -235,10 +242,9 @@ class SubscriberMethodFinder {
     }
 
 
-
     static class FindState {
         //region 参数
-        //订阅方法集合
+        //订阅方法集合，这里是最后返回的
         final List<SubscriberMethod> subscriberMethods = new ArrayList<>();
         //eventtype对应的方法
         final Map<Class, Object> anyMethodByEventType = new HashMap<>();
@@ -246,13 +252,13 @@ class SubscriberMethodFinder {
         final Map<String, Class> subscriberClassByMethodKey = new HashMap<>();
         final StringBuilder methodKeyBuilder = new StringBuilder(128);
 
-        //当前订阅者
+        //当前订阅者的类
         Class<?> subscriberClass;
         //当前查找的类
-        Class<?> clazz;//父类，初始化的时候就是这个类
+        Class<?> clazz;//父类，初始化的时候就是subscriberClass
         //是否跳过父类查找
         boolean skipSuperClasses;
-        SubscriberInfo subscriberInfo;
+        SubscriberInfo subscriberInfo;//订阅者信息
         //endregion
 
         //region initForSubscriber recycle
@@ -275,6 +281,9 @@ class SubscriberMethodFinder {
         //endregion
 
         //region checkAdd()方法用来判断FindState中是否已经添加过将该事件类型为key的键值对，没添加过则返回true
+        //处理两种情况
+        //一.假如注册了3个方法，方法名不一样afun1 afun2 afun3,都添加
+        //二.子类覆盖了父类的订阅方法，只保留子类的
         boolean checkAdd(Method method, Class<?> eventType) {
             // 2 level check: 1st level with event type only (fast), 2nd level with complete signature when required.
             // Usually a subscriber doesn't have methods listening to the same event type.
@@ -296,7 +305,7 @@ class SubscriberMethodFinder {
                 //b.1 子类bfun_child，父类也注册了bfun_parent
                 if (existing instanceof Method) {
                     //这里步骤的意义在于往subscriberClassByMethodKey map里加入第一个方法
-                    //a.2 传入以前的方法afun1
+                    //a.2 existing是以前的方法afun1
                     //b.2 传入以前的方法bfun_child
                     if (!checkAddWithMethodSignature((Method) existing, eventType)) {
                         // Paranoia check
@@ -340,6 +349,7 @@ class SubscriberMethodFinder {
 
 //            isAssignableFrom()方法是判断是否为某个类的父类，instanceof关键字是判断是否某个类的子类。
             //b.7 传入现在的方法bfun_parent，methodClassOld为子类，methodClass为父类
+            //isAssignableFrom判断是否为某个类的父类
             if (methodClassOld == null || methodClassOld.isAssignableFrom(methodClass)) {
                 // Only add if not already found in a sub class
                 return true;

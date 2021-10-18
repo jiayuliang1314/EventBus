@@ -33,6 +33,7 @@ public @interface Subscribe {
     /**
      * If true, delivers the most recent sticky event (posted with
      * {@link EventBus#postSticky(Object)}) to this subscriber (if event available).
+     * 如果为 true，则将最近的粘性事件（通过 {@link EventBus#postSticky(Object)} 发布）传递给该订阅者（如果事件可用）。
      * 是否支持粘性事件
      */
     boolean sticky() default false;
